@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'data/database.dart';
+import 'data/todo.dart';
+import 'data/todo_dao.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final database = await setupDatabase();
+  runApp(MyApp(database: database));
 }
 
 class MyApp extends StatelessWidget {
+  final AppDatabase database;
+
+  const MyApp({Key? key, required this.database}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -12,32 +21,62 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.purple,
       ),
-      home: MyHomePage(),
+      home: MyHomePage(database: database),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
+  final AppDatabase database;
+
+  const MyHomePage({Key? key, required this.database}) : super(key: key);
+
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final List<String> _todoItems = [];
+  final List<Todo> _todoItems = [];
   final TextEditingController _controller = TextEditingController();
+  late TodoDao _todoDao;
 
-  void _addTodoItem(String task) {
+  @override
+  void initState() {
+    super.initState();
+    _todoDao = widget.database.todoDao;
+    _loadTodoItems();
+  }
+
+  Future<void> _loadTodoItems() async {
+    final items = await _todoDao.findAllTodos();
+    setState(() {
+      _todoItems.clear();
+      _todoItems.addAll(items);
+    });
+  }
+
+  Future<void> _addTodoItem(String task) async {
     if (task.isNotEmpty) {
+      final todo = Todo(
+        task: task,
+      );
+      await _todoDao.insertTodo(todo);
+      final items = await _todoDao.findAllTodos();
       setState(() {
-        _todoItems.add(task);
+        _todoItems.clear();
+        _todoItems.addAll(items);
       });
       _controller.clear();
     }
   }
 
-  void _removeTodoItem(int index) {
+  Future<void> _removeTodoItem(int index) async {
+    final todo = _todoItems[index];
+    await _todoDao.deleteTodo(todo);
+    final items = await _todoDao.findAllTodos();
     setState(() {
-      _todoItems.removeAt(index);
+      _todoItems.clear();
+      _todoItems.addAll(items);
     });
   }
 
@@ -46,7 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Delete "${_todoItems[index]}"?'),
+          title: Text('Delete "${_todoItems[index].task}"?'),
           actions: <Widget>[
             TextButton(
               child: Text('Cancel'),
@@ -108,7 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     children: [
                       Text('Row number: $index'),
                       SizedBox(width: 100),
-                      Text(_todoItems[index]),
+                      Text(_todoItems[index].task),
                     ],
                   ),
                   onLongPress: () => _promptRemoveTodoItem(index),
