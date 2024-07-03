@@ -107,7 +107,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('Row number: $index'),
-                      SizedBox(width: 400),
+                      SizedBox(width: 100),
                       Text(_todoItems[index]),
                     ],
                   ),
